@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 
 # Set your Groq API Key
-groq_api_key = "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"
+groq_api_key = "API_KEY"
 client = Groq(api_key=groq_api_key)
 
 def markdown_to_html(text):
