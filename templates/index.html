@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="shortcut icon" href="../static/images/fav.png" type="image/x-icon">
+  <link rel="stylesheet" href="https://kit-pro.fontawesome.com/releases/v5.12.1/css/pro.min.css">
+  <link rel="stylesheet" type="text/css" href="../static/css/style.css">
+  <title>Analysis of {{ pcap_file }}</title>
+
+<style>
+/* Styles for the combined pie charts container and charts */
+#combined-chart-container {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+</style>
+
+
+</head>
+
+<body class="bg-gray-100">
+
+  <!-- start navbar -->
+  <div
+    class="md:fixed md:w-full md:top-0 md:z-20 flex flex-row flex-wrap items-center bg-white p-6 border-b border-gray-300">
+
+    <!-- logo -->
+    <div class="flex-none w-56 flex flex-row items-center">
+      <img src="../static/images/logo.png" class="w-10 flex-none">
+      <strong class="capitalize ml-2 flex-1">Network Insights</strong>
+
+      <button id="sliderBtn" class="flex-none text-right text-gray-900 hidden md:block">
+        <i class="fad fa-list-ul"></i>
+      </button>
+    </div>
+    <!-- end logo -->
+
+    <!-- navbar content toggle -->
+    <button id="navbarToggle" class="hidden md:block md:fixed right-0 mr-6">
+      <i class="fad fa-chevron-double-down"></i>
+    </button>
+    <!-- end navbar content toggle -->
+
+    <!-- navbar content -->
+    <div id="navbar"
+      class="animated md:hidden md:fixed md:top-0 md:w-full md:left-0 md:mt-16 md:border-t md:border-b md:border-gray-200 md:p-10 md:bg-white flex-1 pl-3 flex flex-row flex-wrap justify-between items-center md:flex-col md:items-center">
+      <!-- left -->
+      <div
+        class="text-gray-600 md:w-full md:flex md:flex-row md:justify-evenly md:pb-10 md:mb-10 md:border-b md:border-gray-200">
+      </div>
+      <!-- end left -->
+
+      <!-- right -->
+      <div class="flex flex-row-reverse items-center">
+
+        <!-- upload -->
+        <div class="dropdown relative md:static">
+
+<a href="welcome.html" id="upload-link">
+  <label>
+    <div class="ml-2 capitalize flex">
+    <a href="#" id="upload-another-pcap" class="btn">Another</a>
+    </div>
+  </label>
+</a>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    let downloadLink = document.getElementById("download-report");
+    let uploadLink = document.getElementById("upload-another-pcap");
+
+    // ✅ Handle "Download Report" Click - Just Download, No Pop-Up
+    if (downloadLink) {
+      downloadLink.addEventListener("click", function (event) {
+        event.preventDefault(); // Prevent default navigation
+
+        let pcapFileName = "{{ pcap_file }}";
+        let analysisData = {
+          "Total Packets": "{{ total_packets }}",
+          "Total Endpoints": "{{ total_endpoints }}",
+          "Total Streams": "{{ total_streams }}",
+          "Total Files": "{{ total_files }}"
+        };
+
+        fetch("/generate_report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pcap_file: pcapFileName, analysis_data: analysisData })
+        })
+          .then(response => {
+            if (!response.ok) throw new Error("Failed to generate report");
+            return response.blob();
+          })
+          .then(blob => {
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement("a");
+            a.href = url;
+            a.download = pcapFileName + "_report.pdf";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          })
+          .catch(error => console.error("Error generating report:", error));
+      });
+    }
+
+    // ✅ Handle "Upload Another PCAP" Click - Show Pop-Up, Download (if Yes), Redirect
+    if (uploadLink) {
+      uploadLink.addEventListener("click", function (event) {
+        event.preventDefault(); // Stop default navigation
+
+        let confirmAction = confirm("Do you want to download the analysis report?");
+
+        if (confirmAction) {
+          let pcapFileName = "{{ pcap_file }}";
+          let analysisData = {
+            "Total Packets": "{{ total_packets }}",
+            "Total Endpoints": "{{ total_endpoints }}",
+            "Total Streams": "{{ total_streams }}",
+            "Total Files": "{{ total_files }}"
+          };
+
+          fetch("/generate_report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pcap_file: pcapFileName, analysis_data: analysisData })
+          })
+            .then(response => {
+              if (!response.ok) throw new Error("Failed to generate report");
+              return response.blob();
+            })
+            .then(blob => {
+              let url = window.URL.createObjectURL(blob);
+              let a = document.createElement("a");
+              a.href = url;
+              a.download = pcapFileName + "_report.pdf";
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+
+              // Redirect after download
+              setTimeout(() => window.location.replace("/"), 2000);
+            })
+            .catch(error => {
+              console.error("Error generating report:", error);
+              window.location.replace("/"); // Redirect even if the download fails
+            });
+        } else {
+          // User clicked "No" → Just Redirect
+          window.location.replace("/");
+        }
+      });
+    }
+  });
+</script>
+
+
+
+
+
+
+          <input type="file" id="pcapFileInput" class="hidden" accept=".pcap">
+
+        </div>
+        <!-- end upload -->
+
+      </div>
+      <!-- end right -->
+    </div>
+    <!-- end navbar content -->
+
+  </div>
+  <!-- end navbar -->
+
+
+  <!-- strat wrapper -->
+  <div class="h-screen flex flex-row flex-wrap">
+
+    <!-- start sidebar -->
+    <div id="sideBar"
+      class="relative flex flex-col flex-wrap bg-white border-r border-gray-300 p-6 flex-none w-64 md:-ml-64 md:fixed md:top-0 md:z-30 md:h-screen md:shadow-xl animated faster">
+
+
+      <!-- sidebar content -->
+      <div class="flex flex-col">
+
+        <!-- sidebar toggle -->
+        <div class="text-right hidden md:block mb-4">
+          <button id="sideBarHideBtn">
+            <i class="fad fa-times-circle"></i>
+          </button>
+        </div>
+        <!-- end sidebar toggle -->
+
+        <p class="uppercase text-xs text-gray-600 mb-4 tracking-wider">homes</p>
+
+        <!-- link -->
+        <a href="#" onclick="goToDashboard()"
+          class="mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500 sidebar-link">
+          <i class="fad fa-chart-pie text-xs mr-2"></i>
+          Analytics dashboard
+        </a>
+
+        <!-- end link -->
+
+	<p class="uppercase text-xs text-gray-600 mb-4 mt-4 tracking-wider">Anomalies</p>
+        <!-- link -->
+        <a href="#" class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" data-anomaly="arp_spoofing">
+          <i class="fad fa-exclamation-triangle text-xs mr-2"></i>
+          ARP Spoofing
+        </a>
+        <!-- end link -->
+
+        <!-- link -->
+        <a href="#" class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" data-anomaly="brute_force">
+          <i class="fad fa-exclamation-triangle text-xs mr-2"></i>
+          Brute Force
+        </a>
+        <!-- end link -->
+        
+        <!-- link -->
+        <a href="#" class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" data-anomaly="dns_tunneling">
+          <i class="fad fa-exclamation-triangle text-xs mr-2"></i>
+          DNS Tunneling
+        </a>
+        <!-- end link -->
+        
+	<!-- link -->
+        <a href="#" class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" data-anomaly="icmp_tunneling">
+          <i class="fad fa-exclamation-triangle text-xs mr-2"></i>
+          ICMP Tunneling
+        </a>
+        <!-- end link -->
+        
+        <!-- link -->
+        <a href="#" class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" data-anomaly="ping_of_death">
+          <i class="fad fa-exclamation-triangle text-xs mr-2"></i>
+          Ping of Death
+        </a>
+        <!-- end link -->
+        
+         <!-- link -->
+        <a href="#" class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" data-anomaly="port_scanning">
+          <i class="fad fa-exclamation-triangle text-xs mr-2"></i>
+          Port Scanning
+        </a>
+        <!-- end link -->
+        
+        <!-- link -->
+        <a href="#" class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" data-anomaly="syn_flooding">
+          <i class="fad fa-exclamation-triangle text-xs mr-2"></i>
+          SYN Flooding
+        </a>
+        <!-- end link -->
+
+        <p class="uppercase text-xs text-gray-600 mb-4 mt-4 tracking-wider">Functionalities</p>
+
+ <!-- Credentials Extractor link -->
+<a href="#"
+   id="credentials-btn"
+   class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" 
+   data-anomaly="credentials">
+  <i class="fad fa-key-skeleton text-xs mr-2"></i>
+  Credentials
+</a>
+<!-- end link -->
+
+
+<!-- Strings link -->
+<a href="#" 
+   id="decode-btn"
+   class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" 
+   data-anomaly="statistics">
+ <i class="fad fa-font text-xs mr-2"></i>
+  Strings
+</a>
+<!-- end link -->
+
+        
+ <!-- Extracted Files link -->
+<a href="#"
+   id="files-btn"
+   class="anomaly-btn mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" 
+   data-anomaly="files">
+  <i class="fad fa-file-alt text-xs mr-2"></i>
+  Extracted Files
+</a>
+<!-- end link -->
+
+        
+      <!-- Statistics link -->
+  <a href="#" 
+   id="open-statics-btn"
+   class="mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" 
+   data-anomaly="statistics">
+  <i class="fad fa-chart-bar text-xs mr-2"></i> 
+  Statistics
+</a>
+<!-- end link -->
+
+        
+      <!-- updated link -->
+<a href="#" id="threat-hunt-btn"
+   class="mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500">
+   <i class="fad fa-search-location text-xs mr-2"></i>
+   Threat Hunting
+</a>
+
+<!-- end updated link -->
+
+        
+        <p class="uppercase text-xs text-gray-600 mb-4 mt-4 tracking-wider">Others</p>
+        <!-- end link -->
+        <a href="#" 
+   class="mb-3 capitalize font-medium text-sm hover:text-teal-600 transition ease-in-out duration-500" >
+  <i class="fad fa-book text-xs mr-2"></i> 
+  Report
+</a>
+
+      </div>
+      <!-- end sidebar content -->
+
+    </div>
+    <!-- end sidbar -->
+
+    <!-- strat content -->
+    <div class="bg-gray-100 flex-1 p-6 md:mt-16">
+
+
+     <!-- General Report -->
+<div class="grid grid-cols-4 gap-6 xl:grid-cols-1">
+
+  <!-- Full-width PCAP file name banner -->
+ <div class="col-span-4 bg-white shadow-lg rounded-lg p-4 text-center border border-gray-200">
+  <p class="text-lg font-semibold text-gray-800 flex justify-between items-center px-6">
+    <span><b>📂 File: </b>{{ pcap_file }}</span>
+    <span>📏 Size: {{ file_size }} MB</span>
+    <span>📅 Date: {{ upload_time }} IST</span>
+    <a href="#" id="download-report" class="btn">⬇️ Download Report</a>
+
+  </p>
+</div>
+
+  <!-- Card 1: Total Packets -->
+  <div class="report-card dashboard-view">
+    <div class="card">
+      <div class="card-body flex flex-col">
+        <div class="flex flex-row justify-between items-center">
+          <div class="h3 text-indigo-700 fas fa-paper-plane"></div>
+        </div>
+        <div class="mt-1 text-right">
+          <h1 class="h5">{{ total_packets }}</h1>
+          <p>Total Packets</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer bg-white p-1 mx-4 border border-t-0 rounded rounded-t-none"></div>
+  </div>
+  
+  <!-- Card 2: Total Endpoints -->
+  <div class="report-card dashboard-view">
+    <div class="card">
+      <div class="card-body flex flex-col">
+        <div class="flex flex-row justify-between items-center">
+          <div class="h3 text-red-700 fas fa-desktop"></div>
+        </div>
+        <div class="mt-1 text-right">
+          <h1 class="h5">{{ total_endpoints }}</h1>
+          <p>Total Endpoints</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer bg-white p-1 mx-4 border border-t-0 rounded rounded-t-none"></div>
+  </div>
+
+  <!-- Card 3: Total Sessions -->
+  <div class="report-card dashboard-view">
+    <div class="card">
+      <div class="card-body flex flex-col">
+        <div class="flex flex-row justify-between items-center">
+          <div class="h3 text-yellow-600 fas fa-exchange-alt"></div>
+        </div>
+        <div class="mt-1 text-right">
+          <h1 class="h5">{{ total_streams }}</h1>
+          <p>Total Connections</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer bg-white p-1 mx-4 border border-t-0 rounded rounded-t-none"></div>
+  </div>
+
+  <!-- Card 4: Total Files -->
+  <div class="report-card dashboard-view">
+    <div class="card">
+      <div class="card-body flex flex-col">
+        <div class="flex flex-row justify-between items-center">
+          <div class="h3 text-green-700 far fa-file-alt"></div>
+        </div>
+        <div class="mt-1 text-right">
+          <h1 class="h5">{{ total_files }}</h1>
+          <p>Total Files</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer bg-white p-1 mx-4 border border-t-0 rounded rounded-t-none"></div>
+  </div>
+ </div>
+<!-- End General Report -->
+      
+<!-- Anomaly Detail View -->
+<div id="anomaly-detail-view" style="display:none;" class="card mt-6 p-6 rounded-xl border border-red-300 bg-white shadow-md">
+
+  <!-- Header: Anomaly Name + Count -->
+  <div class="flex justify-between items-center mb-6">
+    <h1 id="anomaly-title" class="text-2xl font-bold text-red-600">Anomaly Name</h1>
+    <span id="alert-count" class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold shadow">
+      0 Alerts Detected
+    </span>
+  </div>
+
+ <div class="rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm text-gray-800 space-y-4" 
+         style="height: 650px; overflow-y: auto;">
+
+  <!-- Key Stats: Unique IPs, MACs, Packets -->
+  <div class="grid grid-cols-3 gap-4 text-center mb-6">
+    <div>
+      <p class="text-sm text-gray-500 font-medium">Unique IPs</p>
+      <p id="anomaly-ips" class="font-semibold text-gray-800 mt-1">--</p>
+    </div>
+    <div>
+      <p class="text-sm text-gray-500 font-medium">MAC Addresses</p>
+      <p id="anomaly-macs" class="font-semibold text-gray-800 mt-1">--</p>
+    </div>
+    <div>
+      <p class="text-sm text-gray-500 font-medium">Total Packets</p>
+      <p id="anomaly-packets" class="font-semibold text-gray-800 mt-1">--</p>
+    </div>
+  </div>
+
+  <!-- Logs Table -->
+  <h3 class="text-lg font-semibold text-blue-700 mb-1">Logs Table</h3>
+  <div class="overflow-x-auto mb-8 border border-gray-300 rounded-xl" style="height: 200px; overflow-y: auto;">
+    <table class="min-w-full text-sm text-gray-800 divide-y divide-gray-200 bg-white">
+      <thead class="bg-gray-100 text-gray-700 text-xs uppercase">
+        <tr>
+          <th class="py-2 px-4">Sr. No.</th>
+          <th class="py-3 px-4 text-left">Time</th>
+          <th class="py-3 px-4 text-left">Source IP</th>
+          <th class="py-3 px-4 text-left">Destination IP</th>
+          <th class="py-3 px-4 text-left">Protocol</th>
+          <th class="py-3 px-4 text-left">Length</th>
+          <th class="py-3 px-4 text-left">Info</th>
+        </tr>
+      </thead>
+      <tbody id="anomaly-log-table" class="divide-y divide-gray-200">
+        <!-- dynamically filled -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Anomaly Summary -->
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold text-blue-700 mb-1">Anomaly Summary</h3>
+    <p id="anomaly-description" class="text-gray-700 text-sm leading-relaxed">
+      Explanation of the anomaly will appear here dynamically.
+    </p>
+  </div>
+
+  <!-- Anomaly Summary -->
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold text-blue-700 mb-1">Threat Hunting</h3>
+    <p id="threat-hunting-tips" class="text-gray-700 text-sm leading-relaxed">
+      Explanation of the threat hunting will appear here dynamically.
+    </p>
+  </div>
+
+    </div>
+    
+</div>
+
+
+<!-- Decode & Strings View -->
+
+<div id="decode-detail-view"
+     style="display:none; min-height: 650px;" 
+     class="card mt-6 p-6 rounded-xl border border-blue-300 bg-white shadow-md bg-white">
+
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-6" style="height: 60px;">
+    <h1 class="text-2xl font-bold text-yellow-700">Payload Decoder & Strings Extractor</h1>
+    <span id="decoded-payloads-count" 
+          class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold shadow" 
+          style="font-size: 14px; padding: 4px 10px;">
+      Decoded Payloads Count
+    </span>
+  </div>
+
+  <!-- Extracted Credentials Section -->
+  <div class="flex flex-col" style="height: calc(100% - 80px);">
+    <h2 class="text-lg font-semibold text-yellow-700 mb-4" style="font-size: 18px;">Extracted Strings</h2>
+
+    <!-- Fixed container with internal scroll -->
+    <div id="extracted-strings" 
+         class="rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm text-gray-800 space-y-4" 
+         style="height: 500px; overflow-y: auto;">
+      <!-- Dynamically populated cards -->
+    </div>
+
+  </div>
+
+</div>
+<!-- Anomaly Detail View -->
+
+<!-- End of Decode & Strings View -->
+
+
+<!-- Credentials Extractor Section -->
+<div id="credentials-detail-view" 
+     style="display:none; min-height: 650px;" 
+     class="card mt-6 p-6 rounded-xl border border-blue-300 bg-white shadow-md bg-white">
+
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-6" style="height: 60px;">
+    <h1 class="text-2xl font-bold text-blue-700">Credentials Extractor</h1>
+    <span id="credentials-count" 
+          class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold shadow" 
+          style="font-size: 14px; padding: 4px 10px;">
+      Extracted Credentials Count
+    </span>
+  </div>
+
+  <!-- Extracted Credentials Section -->
+  <div class="flex flex-col" style="height: calc(100% - 80px);">
+    <h2 class="text-lg font-semibold text-blue-700 mb-4" style="font-size: 18px;">Extracted Credentials</h2>
+
+    <!-- Fixed container with internal scroll -->
+    <div id="extracted-credentials" 
+         class="rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm text-gray-800 space-y-4" 
+         style="height: 500px; overflow-y: auto;">
+      <!-- Dynamically populated cards -->
+    </div>
+
+  </div>
+
+</div>
+<!-- End Credentials Extractor Section -->
+
+
+<!-- Extracted Files Section -->
+<div id="file-detail-view" 
+     style="display:none; min-height: 650px;" 
+     class="card mt-6 p-6 rounded-xl border border-blue-300 bg-white shadow-md bg-white">
+
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-6" style="height: 60px;">
+    <h1 class="text-2xl font-bold text-blue-700">Extracted Files Report</h1>
+    <span id="files-count" 
+          class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold shadow" 
+          style="font-size: 14px; padding: 4px 10px;">
+      Extracted Files Count
+    </span>
+  </div>
+
+  <!-- Extracted Files Section -->
+  <div class="flex flex-col" style="height: calc(100% - 80px);">
+    <h2 class="text-lg font-semibold text-blue-700 mb-4" style="font-size: 18px;">📂 Extracted Files</h2>
+
+    <!-- Fixed container with internal scroll -->
+    <div id="extracted-files" 
+         class="rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm text-gray-800 space-y-4" 
+         style="height: 500px; overflow-y: auto;">
+      <!-- Dynamically populated file cards -->
+    </div>
+
+  </div>
+  
+</div>
+<!-- End Extracted Files Section -->
+
+<!-- Threat Hunting Section -->
+<div id="threat-hunting-view" style="display:none;" class="card mt-6 p-6 rounded-xl border border-blue-300 bg-white shadow-md">
+  
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-blue-700">Threat Hunting Report</h1>
+    <div class="flex space-x-4">
+      <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold shadow">
+        Total Indicators: <span id="threat-total">0</span>
+      </span>
+      <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold shadow">
+        Malicious: <span id="threat-malicious">0</span>
+      </span>
+      <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold shadow">
+        Benign: <span id="threat-benign">0</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- 3-column container -->
+  <div class="grid grid-cols-3 gap-6 h-[550px] overflow-hidden">
+    
+   
+    <!-- IPs -->
+    <div class="border rounded-lg p-3 bg-gray-50 overflow-y-auto">
+      <h2 class="text-lg font-semibold text-blue-700 mb-4">🌐 IP Analysis</h2>
+      <div id="ip-threats" class="space-y-4" style="height: 500px; overflow-y: auto;"></div>
+    </div>
+
+    <!-- Domains -->
+    <div class="border rounded-lg p-3 bg-gray-50 overflow-y-auto">
+      <h2 class="text-lg font-semibold text-blue-700 mb-4">🔍 Domain Analysis</h2>
+      <div id="domain-threats"  class="space-y-4" style="height: 500px; overflow-y: auto;"></div>
+    </div>
+
+    <!-- File Hashes -->
+    <div class="border rounded-lg p-3 bg-gray-50 overflow-y-auto">
+      <h2 class="text-lg font-semibold text-blue-700 mb-4">🧬 Hash Analysis</h2>
+      <div id="file-threats"  class="space-y-4" style="height: 500px; overflow-y: auto;"></div>
+    </div>
+
+  </div>
+</div>
+<!-- End Threat Hunting Section -->
+
+
+
+
+<!-- PCAP Stats -->
+
+<div id="statics-detail-view" style="display:none;" class="card mt-6 p-6 rounded-xl border border-blue-300 bg-white shadow-md">
+
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-blue-700">📊 PCAP File Statistics</h1>
+    <span id="statics-summary" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold shadow">
+      Loaded Successfully
+    </span>
+  </div>
+
+  <!-- Summary Cards (Top Stats) -->
+  <div class="grid grid-cols-3 gap-4 text-center mb-10">
+
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">File Size</p>
+      <p id="stat-file-size" class="font-bold text-gray-800 text-md mt-1"></p>
+    </div>
+
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">Total Packets</p>
+      <p id="stat-total-packets" class="font-bold text-gray-800 text-md mt-1"></p>
+    </div>
+
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">Capture Duration (seconds)</p>
+      <p id="stat-capture-duration" class="font-bold text-gray-800 text-md mt-1">--</p>
+    </div>
+
+  </div>
+
+  <!-- Capture Time -->
+  <div class="grid grid-cols-2 gap-6 text-center mb-10">
+
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">Capture Start</p>
+      <p id="stat-capture-start" class="font-bold text-gray-800 text-md mt-1">--</p>
+    </div>
+
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">Capture End</p>
+      <p id="stat-capture-end" class="font-bold text-gray-800 text-md mt-1">--</p>
+    </div>
+
+  </div>
+
+  <!-- Packet Size Details -->
+  <div class="grid grid-cols-3 gap-4 text-center mb-10">
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">Min Packet Size</p>
+      <p id="stat-packet-min" class="font-bold text-gray-800 text-md mt-1">--</p>
+    </div>
+
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">Max Packet Size</p>
+      <p id="stat-packet-max" class="font-bold text-gray-800 text-md mt-1">--</p>
+    </div>
+
+    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <p class="text-xs text-gray-500 font-medium">Avg Packet Size</p>
+      <p id="stat-packet-avg" class="font-bold text-gray-800 text-md mt-1">--</p>
+    </div>
+  </div>
+  
+  
+  
+  <!-- Combined Pie Charts Container -->
+<div id="combined-chart-container" class="grid grid-cols-3 gap-4 text-center mb-10">
+  <div id="protocol-pie-chart" class="rounded-lg border border-gray-300 bg-gray-50 p-4"></div>
+  <div id="port-pie-chart" class="rounded-lg border border-gray-300 bg-gray-50 p-4"></div>
+</div>
+
+  <!-- Top IPs and MACs -->
+  <div class="grid grid-cols-3 gap-6 mb-10">
+
+    <!-- Top Source IPs -->
+    <div class="border border-gray-300 rounded-xl p-4 bg-gray-50">
+      <h3 class="text-md font-semibold text-gray-700 mb-4">🌐 Top Source IPs</h3>
+      <ul id="top-source-ips" class="text-sm space-y-1"></ul>
+    </div>
+
+    <!-- Top Destination IPs -->
+    <div class="border border-gray-300 rounded-xl p-4 bg-gray-50">
+      <h3 class="text-md font-semibold text-gray-700 mb-4">🌐 Top Destination IPs</h3>
+      <ul id="top-destination-ips" class="text-sm space-y-1"></ul>
+    </div>
+
+    <!-- Top MAC Addresses -->
+    <div class="border border-gray-300 rounded-xl p-4 bg-gray-50">
+      <h3 class="text-md font-semibold text-gray-700 mb-4">🔗 Top MAC Addresses</h3>
+      <ul id="top-mac-addresses" class="text-sm space-y-1"></ul>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- PCAP Stats -->
+
+
+
+      <div class="card mt-6 dashboard-view">
+      
+        <!-- header -->
+        <div class="card-header flex flex-row justify-between">
+          <h1 class="h6">Alert Overview</h1>
+
+
+        </div>
+        <!-- end header -->
+
+        <!-- body -->
+<div class="card-body grid grid-cols-2 gap-6 lg:grid-cols-1">
+<div class="p-8">
+  <h1 class="h2">{{ total_alerts }}</h1>
+  <p class="text-black font-medium">Alerts From Pcap File</p></br>
+
+  {% for name, count in top_alerts %}
+    <div class="{% if not loop.first %}mt-2{% else %}mt-5 mb-2{% endif %} flex items-center">
+      <div class="py-1 px-3 rounded bg-red-200 text-red-900 mr-3">
+        <i class="fa fa-exclamation-triangle"></i>
+      </div>
+      <p class="text-black">
+        <span class="text-red-500 font-semibold">{{ name }}</span> — <span class="text-gray-700">{{ count }} detections</span>
+      </p>
+    </div>
+  {% endfor %}
+
+	</br><a href="#attack-section" class="btn-shadow mt-6">view details</a>
+</div>
+
+          <div class="bg-white p-6 rounded-xl shadow-lg w-full border border-gray-200 mt-6">
+  <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">🚨 Attack Categories Overview</h2>
+
+  <div id="attackGraph" class="flex items-end justify-between gap-4 h-64 px-10 relative">
+    <!-- Bars dynamically rendered here -->
+  </div>
+</div>
+
+<script>
+  const attackData = {
+    "ARP": {{ arp_alert_count }},
+    "DNS": {{ dns_alert_count }},
+    "BruteForce": {{ brute_force_alert_count }},
+    "ICMP": {{ icmp_tunneling_alert_count }},
+    "PingOfDeath": {{ ping_of_death_alert_count }},
+    "PortScan": {{ port_scanning_alert_count }},
+    "SYNFlood": {{ syn_flooding_alert_count }}
+  };
+
+  const graphContainer = document.getElementById("attackGraph");
+  const maxCount = Math.max(...Object.values(attackData), 1);  // Avoid divide-by-zero
+
+  Object.entries(attackData).forEach(([name, value]) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "flex flex-col items-center justify-end h-full";
+
+    const bar = document.createElement("div");
+    bar.style.height = `${(value / maxCount) * 100}%`;
+    bar.className = "w-8 bg-red-500 rounded-t-md transition-all duration-300";
+
+    const countLabel = document.createElement("div");
+    countLabel.innerText = value;
+    countLabel.className = "text-sm text-gray-800 mt-2";
+
+    const attackLabel = document.createElement("div");
+    attackLabel.innerText = name;
+    attackLabel.className = "text-sm text-gray-600 mt-2";
+
+    wrapper.appendChild(bar);
+    wrapper.appendChild(countLabel);
+    wrapper.appendChild(attackLabel);
+    graphContainer.appendChild(wrapper);
+  });
+</script>
+
+
+
+
+
+        </div>
+        <!-- end body -->
+
+      </div>
+      <!-- end Sales Overview -->
+
+      <!-- start numbers -->
+      <div class="grid grid-cols-5 gap-6 xl:grid-cols-2 dashboard-view">
+
+        <!-- card -->
+        <div class="card mt-6">
+          <div class="card-body flex items-center">
+
+            <div class="px-3 py-2 rounded bg-indigo-600 text-white mr-3">
+              <i class="fas fa-globe"></i>
+            </div>
+
+            <div class="flex flex-col">
+              <h1 class="font-semibold"><span>{{ HTTP_Count }}</span></h1>
+              <p class="text-xs">HTTP</p>
+            </div>
+
+          </div>
+        </div>
+        <!-- end card -->
+
+        <!-- card -->
+        <div class="card mt-6">
+          <div class="card-body flex items-center">
+
+            <div class="px-3 py-2 rounded bg-green-600 text-white mr-3">
+              <i class="fas fa-globe"></i>
+            </div>
+
+            <div class="flex flex-col">
+              <h1 class="font-semibold"><span>{{ DNS_Count }}</span></h1>
+              <p class="text-xs">DNS</p>
+            </div>
+
+          </div>
+        </div>
+        <!-- end card -->
+
+	<!-- card -->
+        <div class="card mt-6">
+          <div class="card-body flex items-center">
+
+            <div class="px-3 py-2 rounded bg-indigo-600 text-white mr-3">
+              <i class="fas fa-globe"></i>
+            </div>
+
+            <div class="flex flex-col">
+              <h1 class="font-semibold"><span>{{ SSH_Count }}</span></h1>
+              <p class="text-xs">SSH</p>
+            </div>
+
+          </div>
+        </div>
+        <!-- end card -->
+        
+        <!-- card -->
+        <div class="card mt-6">
+          <div class="card-body flex items-center">
+
+            <div class="px-3 py-2 rounded bg-indigo-600 text-white mr-3">
+              <i class="fas fa-globe"></i>
+            </div>
+
+            <div class="flex flex-col">
+              <h1 class="font-semibold"><span>{{ FTP_Count }}</span></h1>
+              <p class="text-xs">FTP</p>
+            </div>
+
+          </div>
+        </div>
+        <!-- end card -->
+        
+        <!-- card -->
+        <div class="card mt-6">
+          <div class="card-body flex items-center">
+
+            <div class="px-3 py-2 rounded bg-indigo-600 text-white mr-3">
+              <i class="fas fa-globe"></i>
+            </div>
+
+            <div class="flex flex-col">
+              <h1 class="font-semibold"><span>{{ ARP_Count }}</span></h1>
+              <p class="text-xs">ARP</p>
+            </div>
+
+          </div>
+        </div>
+        <!-- end card -->
+
+      </div>
+      <!-- end nmbers -->
+
+
+    </div>
+    <!-- end content -->
+
+  </div>
+  <!-- end wrapper -->
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="../static/js/scripts.js"></script>
+  
+<script>
+const arpData = {
+  title: "ARP Spoofing",
+  alertCount: {{ arp_alert_count }},
+  uniqueIPs: {{ arp_unique_ips | tojson }},
+  macAddresses: {{ arp_mac_addresses | tojson }},
+  packetCount: {{ arp_total_packets }},
+  logs: {{ arp_log_entries | tojson }},
+  summary: {{ arp_alert_summary | tojson | safe }},
+  threatHunting: {{ arp_threat_hunting_summary  | tojson | safe }}
+};
+
+const icmpData = {
+  title: "ICMP Tunneling",
+  alertCount: {{ icmp_tunneling_alert_count }},
+  uniqueIPs: {{ icmp_tunneling_unique_ips | tojson }},
+  macAddresses: {{ icmp_tunneling_mac_addresses | tojson }},
+  packetCount: {{ icmp_tunneling_total_packets  }},
+  logs: {{ icmp_tunneling_log_entries | tojson }},
+  summary: {{ icmp_tunneling_alert_summary | tojson | safe }},
+  threatHunting: {{ icmp_tunneling_threat_hunting_summary | tojson | safe }}
+};
+
+const podData = {
+  title: "Ping of Death",
+  alertCount: {{ ping_of_death_alert_count }},
+  uniqueIPs: {{ ping_of_death_unique_ips | tojson }},
+  macAddresses: {{ ping_of_death_mac_addresses | tojson }},
+  packetCount: {{ ping_of_death_total_packets  }},
+  logs: {{ ping_of_death_log_entries | tojson }},
+  summary: {{ ping_of_death_alert_summary | tojson | safe }},
+  threatHunting: {{ ping_of_death_threat_hunting_summary | tojson | safe }}
+};
+
+const dnsData = {
+  title: "DNS Tunneling",
+  alertCount: {{ dns_alert_count }},
+  uniqueIPs: {{ dns_alert_unique_ips | tojson }},
+  macAddresses: {{ dns_alert_mac_addresses | tojson }},
+  packetCount: {{ dns_alert_total_packets  }},
+  logs: {{ dns_alert_log_entries | tojson }},
+  summary: {{ dns_alert_summary | tojson | safe }},
+  threatHunting: {{ dns_threat_hunting_summary | tojson | safe }}
+};
+
+
+const synData = {
+  title: "SYN Flooding",
+  alertCount: {{ syn_flooding_alert_count }},
+  uniqueIPs: {{ syn_flooding_unique_ips | tojson }},
+  macAddresses: {{ syn_flooding_mac_addresses | tojson }},
+  packetCount: {{ syn_flooding_total_packets  }},
+  logs: {{ syn_flooding_log_entries | tojson }},
+  summary: {{ syn_flooding_alert_summary | tojson | safe }},
+  threatHunting: {{ syn_flooding_threat_hunting_summary | tojson | safe }}
+};
+
+const portData = {
+  title: "Port Scanning",
+  alertCount: {{ port_scanning_alert_count }},
+  uniqueIPs: {{ port_scanning_unique_ips | tojson }},
+  macAddresses: {{ port_scanning_mac_addresses | tojson }},
+  packetCount: {{ port_scanning_total_packets  }},
+  logs: {{ port_scanning_log_entries | tojson }},
+  summary: {{ port_scanning_alert_summary  | tojson | safe }},
+  threatHunting: {{ port_scanning_threat_hunting_summary  | tojson | safe }}
+};
+
+const bruteData = {
+  title: "Brute Force",
+  alertCount: {{ brute_force_alert_count }},
+  uniqueIPs: {{ brute_force_unique_ips | tojson }},
+  macAddresses: {{ brute_force_mac_addresses | tojson }},
+  packetCount: {{ brute_force_total_packets  }},
+  logs: {{ brute_force_log_entries | tojson }},
+  summary: {{ brute_force_summary | tojson | safe }},
+  threatHunting: {{ brute_force_threat_hunting_summary | tojson | safe }}
+};
+
+function hideAllViews() {
+  document.querySelectorAll(".dashboard-view, #anomaly-detail-view, #statics-detail-view, #decode-detail-view, #credentials-detail-view, #file-detail-view, #threat-hunting-view").forEach(el => {
+    el.style.display = "none";
+  });
+}
+
+function renderAnomalyView(data) {
+  hideAllViews();
+  document.getElementById("anomaly-detail-view").style.display = "block";
+
+  document.getElementById("anomaly-title").innerText = data.title;
+  document.getElementById("alert-count").innerText = `${data.alertCount} Alerts Detected`;
+
+  const ipContainer = document.getElementById("anomaly-ips");
+  ipContainer.innerHTML = data.uniqueIPs?.length ? data.uniqueIPs.map(ip => `<b>${ip}</b></br>`).join('') : "--";
+
+  const macContainer = document.getElementById("anomaly-macs");
+  macContainer.innerHTML = data.macAddresses?.length ? data.macAddresses.map(mac => `<b>${mac}</b></br>`).join('') : "--";
+
+  document.getElementById("anomaly-packets").innerText = data.packetCount || "--";
+
+  const logTable = document.getElementById("anomaly-log-table");
+  logTable.innerHTML = "";
+  if (data.logs?.length > 0) {
+  data.logs.forEach((log, index) => {
+  const tr = document.createElement("tr");
+  const tdIndex = document.createElement("td");
+  tdIndex.className = "py-2 px-4 text-center";
+  tdIndex.textContent = index + 1;
+  tr.appendChild(tdIndex);
+
+  const fields = ["time", "src_ip", "dst_ip", "protocol", "length", "info"];
+  fields.forEach(field => {
+    const td = document.createElement("td");
+    td.className = "py-2 px-4";
+    td.textContent = log[field] || "--";
+    tr.appendChild(td);
+  });
+
+  logTable.appendChild(tr);
+});
+
+
+  } else {
+    logTable.innerHTML = `<tr><td colspan="6" class="py-2 px-4 text-center text-gray-400">No logs available</td></tr>`;
+  }
+console.log("Threat Hunting Data Type:", typeof data.threatHunting);
+console.log("Threat Hunting Data:", data.threatHunting);
+
+document.getElementById("anomaly-description").innerHTML = data.summary.replace(/\n/g, "<br>");
+document.getElementById("threat-hunting-tips").innerHTML = data.threatHunting.replace(/\n/g, "<br>");
+}
+
+function toggleAnomalyView(key) {
+  if (key === "arp_spoofing") {
+    renderAnomalyView(arpData);
+  } else if (key === "icmp_tunneling") {
+    renderAnomalyView(icmpData);
+  } else if (key === "ping_of_death") {
+    renderAnomalyView(podData);
+  } else if (key === "dns_tunneling") {
+    renderAnomalyView(dnsData);
+  } else if (key === "syn_flooding") {
+    renderAnomalyView(synData);
+  } else if (key === "port_scanning") {
+    renderAnomalyView(portData);
+  } else if (key === "brute_force") {
+    renderAnomalyView(bruteData);
+  }
+}
+
+// Attach all anomaly buttons
+document.querySelectorAll(".anomaly-btn").forEach(btn => {
+  btn.addEventListener("click", function (e) {
+    e.preventDefault();
+    toggleAnomalyView(this.dataset.anomaly);
+  });
+});
+</script>
+
+
+<script>
+  function goToDashboard() {
+    // First hide EVERYTHING
+    document.querySelectorAll(".dashboard-view, #anomaly-detail-view, #statics-detail-view, #decode-detail-view, #credentials-detail-view, #file-detail-view, #threat-hunting-view").forEach(el => {
+      el.style.display = "none";
+    });
+
+    // Then show the Dashboard
+    document.querySelectorAll(".dashboard-view").forEach(el => {
+      el.style.display = "block";
+    });
+  }
+</script>
+
+
+  <!-- end script -->
+
+<script>
+
+// Global Chart variables
+let protocolPieChart = null;
+let portPieChart = null;
+
+// pcapStats object populated by backend (Jinja2)
+const pcapStats = {
+  fileSize: "{{ file_size_stats }}",
+  totalPackets: "{{ total_packets_stats }}",
+  captureStart: "{{ capture_start }}",
+  captureEnd: "{{ capture_end }}",
+  durationSeconds: "{{ duration_seconds }}",
+  packetSizeMin: "{{ packet_size_min }}",
+  packetSizeMax: "{{ packet_size_max }}",
+  packetSizeAvg: "{{ packet_size_avg }}",
+  protocolDistribution: {{ protocol_distribution | tojson }},
+  topSourceIps: {{ top_source_ips | tojson }},
+  topDestinationIps: {{ top_destination_ips | tojson }},
+  topMacAddresses: {{ top_mac_addresses | tojson }},
+  portDistribution: {{ top_ports | tojson }}
+};
+
+// Function to hide all views
+function hideAllViews() {
+  document.querySelectorAll(".dashboard-view, #anomaly-detail-view, #statics-detail-view, #decode-detail-view, #credentials-detail-view, #file-detail-view, #threat-hunting-view").forEach(el => {
+    el.style.display = "none";
+  });
+}
+
+// Function to fill IPs and MACs lists
+function fillList(elementId, dataObj) {
+  const el = document.getElementById(elementId);
+  el.innerHTML = "";
+  for (const [key, value] of Object.entries(dataObj)) {
+    const li = document.createElement("li");
+    li.innerText = `${key} (${value})`;
+    el.appendChild(li);
+  }
+}
+
+// Function to show PCAP Statistics View
+function showStaticsView() {
+  // Show statics view
+  const staticsView = document.getElementById("statics-detail-view");
+  staticsView.style.display = "block";
+
+  // Fill text data
+  document.getElementById("stat-file-size").innerText = pcapStats.fileSize || "--";
+  document.getElementById("stat-total-packets").innerText = pcapStats.totalPackets || "--";
+  document.getElementById("stat-capture-start").innerText = pcapStats.captureStart || "--";
+  document.getElementById("stat-capture-end").innerText = pcapStats.captureEnd || "--";
+  document.getElementById("stat-capture-duration").innerText = pcapStats.durationSeconds || "--";
+  document.getElementById("stat-packet-min").innerText = pcapStats.packetSizeMin || "--";
+  document.getElementById("stat-packet-max").innerText = pcapStats.packetSizeMax || "--";
+  document.getElementById("stat-packet-avg").innerText = pcapStats.packetSizeAvg || "--";
+
+  fillList("top-source-ips", pcapStats.topSourceIps);
+  fillList("top-destination-ips", pcapStats.topDestinationIps);
+  fillList("top-mac-addresses", pcapStats.topMacAddresses);
+
+  // Render pie charts after DOM is painted
+  requestAnimationFrame(() => {
+    // Destroy old charts if exist
+    if (protocolPieChart) protocolPieChart.destroy();
+    if (portPieChart) portPieChart.destroy();
+
+    // Protocol Distribution Pie Chart
+    protocolPieChart = new ApexCharts(document.getElementById("protocol-pie-chart"), {
+      chart: {
+        type: 'pie',
+        height: 300,
+      },
+      labels: Object.keys(pcapStats.protocolDistribution),
+      series: Object.values(pcapStats.protocolDistribution),
+      legend: { position: 'bottom' },
+      colors: ['#66bb6a', '#29b6f6', '#ffa726', '#ab47bc', '#ef5350', '#42a5f5', '#ffca28'],
+      responsive: [{
+        breakpoint: 768,
+        options: {
+          chart: { width: '100%' },
+          legend: { position: 'bottom' }
+        }
+      }]
+    });
+    protocolPieChart.render();
+
+    // Port Distribution Pie Chart
+    portPieChart = new ApexCharts(document.getElementById("port-pie-chart"), {
+      chart: {
+        type: 'pie',
+        height: 300,
+      },
+      labels: Object.keys(pcapStats.portDistribution),
+      series: Object.values(pcapStats.portDistribution),
+      legend: { position: 'bottom' },
+      colors: ['#8e24aa', '#26a69a', '#ff7043', '#5c6bc0', '#66bb6a', '#d4e157', '#ec407a'],
+      responsive: [{
+        breakpoint: 768,
+        options: {
+          chart: { width: '100%' },
+          legend: { position: 'bottom' }
+        }
+      }]
+    });
+    portPieChart.render();
+  });
+}
+
+// Hook button click to open Statistics view
+document.getElementById("open-statics-btn").addEventListener("click", function (e) {
+  e.preventDefault();
+  hideAllViews() 
+  showStaticsView();
+});
+
+// Responsive resize handling
+window.addEventListener('resize', () => {
+  if (protocolPieChart) protocolPieChart.resize();
+  if (portPieChart) portPieChart.resize();
+});
+</script>
+
+<script>
+// Strings Script (Decode View)
+
+// Data from Flask backend via Jinja2
+const decodeData = {
+  decodedPayloads: {{ decoded_payloads | tojson }},
+  decodedCount: {{ decoded_count }}
+};
+
+// Reuse hideAllViews from global context (or redefine if needed)
+
+function hideAllViews() {
+  document.querySelectorAll(".dashboard-view, #anomaly-detail-view, #statics-detail-view, #decode-detail-view, #credentials-detail-view, #file-detail-view, #threat-hunting-view").forEach(el => {
+    el.style.display = "none";
+  });
+}
+
+
+// Function to show decode view
+function toggleDecodeView() {
+  hideAllViews();
+
+  // Show decode section
+  document.getElementById("decode-detail-view").style.display = "block";
+
+  // Update total string count
+  document.getElementById("decoded-payloads-count").innerText = `Total Strings: ${decodeData.decodedCount || 0}`;
+
+  // Container to display strings
+  const stringBox = document.getElementById("extracted-strings");
+  stringBox.innerHTML = "";
+
+  if (decodeData.decodedPayloads.length > 0) {
+    decodeData.decodedPayloads.forEach(payload => {
+      const card = document.createElement("div");
+      card.className = "p-4 bg-white rounded-lg shadow border border-green-300 mb-2 overflow-auto";
+
+      card.innerHTML = `
+        <div class="text-gray-700 font-mono text-sm">${payload}</div>
+      `;
+
+      stringBox.appendChild(card);
+    });
+  } else {
+    stringBox.innerHTML = `<p class="text-gray-400 text-center">No readable strings found.</p>`;
+  }
+}
+
+// Hook decode button click
+document.getElementById("decode-btn").addEventListener("click", function (e) {
+  e.preventDefault();
+  toggleDecodeView();
+});
+</script>
+
+
+<script>
+// Credentials Extractor Script
+
+// Data from Flask backend using Jinja2
+const credentialsData = {
+  credentials: {{ extracted_credentials | tojson }},
+  totalCredentials: {{ extracted_credentials_count }}
+};
+
+function hideAllViews() {
+  document.querySelectorAll(".dashboard-view, #anomaly-detail-view, #statics-detail-view, #decode-detail-view, #credentials-detail-view, #file-detail-view, #threat-hunting-view").forEach(el => {
+    el.style.display = "none";
+  });
+}
+
+
+function toggleCredentialsView() {
+  hideAllViews(); // Hide all first
+
+  // Show Credentials Section
+  document.getElementById("credentials-detail-view").style.display = "block";
+
+  // Update count badgefiles-count
+  document.getElementById("credentials-count").innerText = `Total Credentials: ${credentialsData.totalCredentials || 0}`;
+
+  // Populate extracted credentials
+  const credentialsBox = document.getElementById("extracted-credentials");
+  credentialsBox.innerHTML = "";
+
+  if (credentialsData.credentials.length > 0) {
+    credentialsData.credentials.forEach(cred => {
+      const card = document.createElement("div");
+      card.className = "p-4 bg-white rounded-lg shadow border border-green-300 mb-2";
+
+      card.innerHTML = `
+        <div><strong>Protocol:</strong> ${cred.protocol}</div>
+        <div><strong>Source IP:</strong> ${cred.src_ip}</div>
+        <div><strong>Destination IP:</strong> ${cred.dst_ip}</div>
+        <div><strong>Data:</strong> ${cred.data}</div>
+      `;
+
+      credentialsBox.appendChild(card);
+    });
+  } else {
+    credentialsBox.innerHTML = `<p class="text-gray-400 text-center">No credentials found.</p>`;
+  }
+}
+
+// Hook credentials button
+document.getElementById("credentials-btn").addEventListener("click", function (e) {
+  e.preventDefault();
+  toggleCredentialsView();
+});
+</script>
+
+<script>
+// File Extraction Report Renderer
+const fileExtractionData = {{ extracted_file_report | tojson }};
+fileExtractionData.fileCount = {{ extracted_file_count }};
+
+function hideAllViews() {
+  document.querySelectorAll(".dashboard-view, #anomaly-detail-view, #statics-detail-view, #decode-detail-view, #credentials-detail-view, #file-detail-view, #threat-hunting-view").forEach(el => {
+    el.style.display = "none";
+  });
+}
+
+function toggleFileExtractionView() {
+  hideAllViews();
+
+  // Show the file detail section
+  document.getElementById("file-detail-view").style.display = "block";
+
+  // Update count badge
+  document.getElementById("files-count").innerText = `Extracted Files Count : ${fileExtractionData.fileCount || 0}`;
+
+  const fileBox = document.getElementById("extracted-files");
+  fileBox.innerHTML = "";
+
+  const files = fileExtractionData.files || [];
+
+  if (files.length === 0) {
+    fileBox.innerHTML = `<p class="text-gray-400 text-center">No files found.</p>`;
+    return;
+  }
+
+  files.forEach(file => {
+    const card = document.createElement("div");
+    card.className = `p-4 rounded-lg shadow border mb-4 ${file.threat_result === 'malicious' ? 'bg-red-100 border-red-400' : 'bg-green-100 border-green-400'}`;
+
+    card.innerHTML = `
+      <div><strong>File Name:</strong> ${file.file_name}</div>
+      <div><strong>Size (KB):</strong> ${file.file_size_kb}</div>
+      <div><strong>SHA256:</strong> ${file.sha256}</div>
+      <div><strong>Threat Result:</strong> ${file.threat_result}</div>
+      <div><strong>Download:</strong> <a href="${file.download_path}" class="underline text-blue-600" download>Download File</a></div>
+      ${file.threat_result === 'malicious' ? `
+        <div class="mt-2">
+          <a href="https://www.virustotal.com/gui/file/${file.sha256}" target="_blank" class="inline-block bg-blue-600 text-white px-2 py-1 rounded text-sm mr-2">View on VirusTotal</a>
+          <span class="inline-block bg-red-600 text-white px-2 py-1 rounded text-sm">⚠ Warning: This file is flagged as malicious!</span>
+        </div>
+      ` : ''}
+    `;
+
+    fileBox.appendChild(card);
+  });
+}
+
+// Hook button
+document.getElementById("files-btn").addEventListener("click", function (e) {
+  e.preventDefault();
+  toggleFileExtractionView();
+});
+</script>
+
+
+<script>
+const threatData = {{ threat_data | tojson }};
+
+function hideAllViews() {
+  document.querySelectorAll(
+    ".dashboard-view, #anomaly-detail-view, #statics-detail-view, #decode-detail-view, #credentials-detail-view, #file-detail-view, #threat-hunting-view"
+  ).forEach(el => {
+    el.style.display = "none";
+  });
+}
+
+function toggleThreatHuntingView() {
+  hideAllViews();
+  document.getElementById("threat-hunting-view").style.display = "block";
+
+  if (!threatData) return;
+
+  // Clear containers first
+  const ipContainer = document.getElementById('ip-threats');
+  const domainContainer = document.getElementById('domain-threats');
+  const fileContainer = document.getElementById('file-threats');
+  ipContainer.innerHTML = "";
+  domainContainer.innerHTML = "";
+  fileContainer.innerHTML = "";
+
+  let total = 0;
+  let malicious = 0;
+  let benign = 0;
+
+  // === IP Analysis ===
+  for (const ip in threatData.ips) {
+    total++;
+    const data = threatData.ips[ip];
+    const score = parseInt(data.abuse_confidence_score);
+    const isMalicious = score >= 50;
+
+    if (isMalicious) malicious++;
+    else benign++;
+
+    const card = document.createElement('div');
+    card.className = `border rounded-md p-3 shadow-sm ${isMalicious ? 'bg-red-100 border-red-400' : 'bg-white'}`;
+
+    card.innerHTML = `
+      <div class="font-semibold ${isMalicious ? 'text-red-700' : 'text-blue-600'}">${data.ip}</div>
+      <div class="text-sm text-gray-700">Reports: ${data.total_reports}, Score: ${score}</div>
+      <div class="text-sm">Domain: ${data.domain || 'N/A'} | Country: ${data.country_code || 'N/A'}</div>
+      <div class="text-sm">Hostnames: ${data.hostnames.join(', ') || 'None'}</div>
+      <div class="text-xs text-gray-500 mb-1">Last Reported: ${data.last_reported_at || 'Never'}</div>
+      ${isMalicious ? `<span class="text-xs bg-red-200 text-red-800 px-2 py-0.5 rounded-full font-semibold">AbuseIPDB</span>` : ''}
+    `;
+    ipContainer.appendChild(card);
+  }
+
+  // === Domain Analysis ===
+  for (const domain in threatData.domains) {
+    total++;
+    const data = threatData.domains[domain];
+    const stats = data.last_analysis_stats;
+    const isMalicious = stats.malicious > 0;
+
+    if (isMalicious) malicious++;
+    else benign++;
+
+    const card = document.createElement('div');
+    card.className = `border rounded-md p-3 shadow-sm ${isMalicious ? 'bg-red-100 border-red-400' : 'bg-white'}`;
+
+    card.innerHTML = `
+      <div class="font-semibold ${isMalicious ? 'text-red-700' : 'text-blue-600'}">${domain}</div>
+      <div class="text-sm text-gray-700">Categories: ${data.categories.join(', ') || 'N/A'}</div>
+      <div class="text-sm">Malicious: ${stats.malicious}, Harmless: ${stats.harmless}, Suspicious: ${stats.suspicious}</div>
+      <div class="text-xs text-gray-500 mb-1">Last Analyzed: ${data.last_analysis_date}</div>
+      ${isMalicious ? `<span class="text-xs bg-red-200 text-red-800 px-2 py-0.5 rounded-full font-semibold">VirusTotal</span>` : ''}
+    `;
+    domainContainer.appendChild(card);
+  }
+
+  // === File Hash Analysis ===
+  for (const hash in threatData.file_hashes) {
+    total++;
+    const data = threatData.file_hashes[hash].analysis;
+    const stats = data.last_analysis_stats;
+    const isMalicious = stats.malicious > 0;
+
+    if (isMalicious) malicious++;
+    else benign++;
+
+    const card = document.createElement('div');
+    card.className = `border rounded-md p-3 shadow-sm break-words ${isMalicious ? 'bg-red-100 border-red-400' : 'bg-white'}`;
+
+    card.innerHTML = `
+      <div class="font-semibold ${isMalicious ? 'text-red-700' : 'text-blue-600'}">SHA256: ${hash}</div>
+      <div class="text-sm">File Name: ${data.file_name || 'Unknown'}</div>
+      <div class="text-sm">Malicious: ${stats.malicious}, Undetected: ${stats.undetected}</div>
+      <div class="text-xs text-gray-500 mb-1">First Submitted: ${data.first_submission_date}, Last Analyzed: ${data.last_analysis_date}</div>
+      ${isMalicious ? `<span class="text-xs bg-red-200 text-red-800 px-2 py-0.5 rounded-full font-semibold">VirusTotal</span>` : ''}
+    `;
+    fileContainer.appendChild(card);
+  }
+
+  // === Update Totals ===
+  document.getElementById('threat-total').textContent = total;
+  document.getElementById('threat-malicious').textContent = malicious;
+  document.getElementById('threat-benign').textContent = benign;
+}
+
+// Attach button event
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("threat-hunt-btn").addEventListener("click", function (e) {
+    e.preventDefault();
+    toggleThreatHuntingView();
+  });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const anomalyCounts = {
+    arp_spoofing: {{ arp_alert_count | int }},
+    brute_force: {{ brute_force_alert_count | int }},
+    dns_tunneling: {{ dns_alert_count | int }},
+    icmp_tunneling: {{ icmp_tunneling_alert_count | int }},
+    ping_of_death: {{ ping_of_death_alert_count | int }},
+    port_scanning: {{ port_scanning_alert_count | int }},
+    syn_flooding: {{ syn_flooding_alert_count | int }}
+  };
+
+  Object.entries(anomalyCounts).forEach(([key, count]) => {
+    const link = document.querySelector(`a[data-anomaly="${key}"]`);
+    if (link && count > 0) {
+      // Remove existing badge if present
+      const existingBadge = link.querySelector(".anomaly-badge");
+      if (existingBadge) existingBadge.remove();
+
+      // Create a perfect circle badge
+      const badge = document.createElement("span");
+      badge.className = `
+        anomaly-badge ml-2 inline-flex items-center justify-center
+        bg-red-500 text-white text-xs font-bold
+        rounded-full w-4 h-4
+      `;
+      badge.textContent = count;
+      link.appendChild(badge);
+    }
+  });
+});
+</script>
+
+</body>
+
+</html>
+
+
