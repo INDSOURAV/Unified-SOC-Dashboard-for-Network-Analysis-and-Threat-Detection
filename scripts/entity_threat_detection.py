@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 import os
 
 # ✍️ Fill these with your API keys
-VIRUSTOTAL_API_KEY = '8e3f37988f2d6f1e488138bb8f10e869d8f5a4b9063d21c3b41d22ec8f38396a'
-ABUSEIPDB_API_KEY = 'de3d1323dc1044fecbf275c5403d7b23b3ff9b5a470092db677c35fb0484b9d1c064b3ab4888c90e'
+VIRUSTOTAL_API_KEY = 'API_KEY'
+ABUSEIPDB_API_KEY = 'API_KEY'
 
 # 🧠 API Functions
 def check_file_hash_virustotal(file_hash):
